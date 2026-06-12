@@ -13,12 +13,22 @@
 lbls = {"$x_1$", "$x_2$", "$x_3$"};
 
 % ── helpers ───────────────────────────────────────────────────────────────
+function Pout = nearest_spd(P)
+    % Symmetrize then clamp any negative eigenvalues to eps so that
+    % plot_gaussian_ellipsoid receives a valid positive-definite matrix.
+    P = (P + P') / 2;
+    [V, D] = eig(P);
+    D = max(D, eps * eye(size(D)));
+    Pout = V * D * V';
+    Pout = (Pout + Pout') / 2;
+end
+
 function plot_gaussian_corner(mu_col, Pcov, color, lbls)
     % mu_col : 3x1 column vector
     % Pcov   : 3x3 covariance matrix
     p.type  = "ekf";
     p.color = color;
-    plot_corner_pdf(mu_col', 'P', Pcov, 'p', p, 'lbls', lbls);
+    plot_corner_pdf(mu_col', 'P', nearest_spd(Pcov), 'p', p, 'lbls', lbls);
 end
 
 function plot_ensemble_corner(Xmat, color, lbls)
