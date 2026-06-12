@@ -119,11 +119,78 @@ for s = 1:n_states
     set(gca, 'FontName', 'Times', 'LineWidth', 1);
 end
 
-% ── Local function (mirrors definition in mae280_final_proj.mlx) ──────────
+% ══ Figure 5: 3D trajectories + covariance ellipsoids ═════════════════════
+% Ellipsoids are drawn at evenly-spaced time snapshots to show how
+% uncertainty evolves in 3D state space.
+snap_idx = round(linspace(2, n_t, 6));   % 6 snapshots along [0,1]
+
+figure('Name', '3D trajectories');
+hold on; grid on; box on;
+ax3 = gca;
+
+% True trajectory
+plot3(x_true(1,:), x_true(2,:), x_true(3,:), ...
+      '-', 'Color', colors.true, 'LineWidth', 2, 'DisplayName', 'True');
+
+% KF mean + ellipsoids
+plot3(x_kalm(1,:), x_kalm(2,:), x_kalm(3,:), ...
+      '--', 'Color', colors.kf, 'LineWidth', 1.2, 'DisplayName', 'KF mean');
+for k = snap_idx
+    Pk = P_kalm(:, 3*(k-1)+1 : 3*k);
+    draw_ellipsoid(x_kalm(:,k), Pk, colors.kf, 0.15);
+end
+
+% EKF mean + ellipsoids
+plot3(x_EKF(1,:), x_EKF(2,:), x_EKF(3,:), ...
+      '--', 'Color', colors.ekf, 'LineWidth', 1.2, 'DisplayName', 'EKF mean');
+for k = snap_idx
+    Pe = P_EKF(:, 3*(k-1)+1 : 3*k);
+    draw_ellipsoid(x_EKF(:,k), Pe, colors.ekf, 0.15);
+end
+
+% EnKF: faint ensemble lines + bold mean
+members_t1 = reshape(x_ensemble(:,end), n_states, N_ens);
+for i = 1:N_ens
+    traj_i = reshape(x_ensemble(3*i-2:3*i, :), n_states, n_t);
+    plot3(traj_i(1,:), traj_i(2,:), traj_i(3,:), ...
+          '-', 'Color', [colors.enkf, 0.04], 'LineWidth', 0.5, ...
+          'HandleVisibility', 'off');
+end
+plot3(x_ens_mean(1,:), x_ens_mean(2,:), x_ens_mean(3,:), ...
+      '--', 'Color', colors.enkf, 'LineWidth', 1.5, 'DisplayName', 'EnKF mean');
+
+xlabel('$x_1$', 'Interpreter', 'latex', 'FontSize', 13);
+ylabel('$x_2$', 'Interpreter', 'latex', 'FontSize', 13);
+zlabel('$x_3$', 'Interpreter', 'latex', 'FontSize', 13);
+title('3D trajectories with $1\sigma$ ellipsoids (KF/EKF) and ensemble (EnKF)', ...
+      'Interpreter', 'latex', 'FontSize', 12);
+legend('Location', 'best', 'Interpreter', 'latex', 'FontSize', 11);
+set(ax3, 'FontName', 'Times', 'LineWidth', 1);
+view([-35, 25]);
+
+% ── Local functions ───────────────────────────────────────────────────────
 function x_next = RK4_step(f, x, dt)
     k1 = f(x);
     k2 = f(x + 0.5*dt*k1);
     k3 = f(x + 0.5*dt*k2);
     k4 = f(x + dt*k3);
     x_next = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
+end
+
+function draw_ellipsoid(mu, P, color, alpha_val)
+% Draws the 1-sigma covariance ellipsoid for N(mu, P) as a translucent surface.
+    P = (P + P') / 2;
+    [V, D] = eig(P);
+    D = max(diag(D), eps);          % clamp negative eigenvalues
+    % Unit sphere
+    [sx, sy, sz] = sphere(24);
+    pts = [sx(:), sy(:), sz(:)]';   % 3 x N
+    % Affine transform: ellipsoid = mu + V * diag(sqrt(D)) * unit_sphere
+    pts_e = V * diag(sqrt(D)) * pts;
+    Xe = reshape(pts_e(1,:), size(sx)) + mu(1);
+    Ye = reshape(pts_e(2,:), size(sy)) + mu(2);
+    Ze = reshape(pts_e(3,:), size(sz)) + mu(3);
+    surf(Xe, Ye, Ze, ...
+         'FaceColor', color, 'FaceAlpha', alpha_val, ...
+         'EdgeColor', 'none', 'HandleVisibility', 'off');
 end
