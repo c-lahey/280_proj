@@ -18,7 +18,7 @@ n_states = 3;
 x_ens_mean = zeros(n_states, length(t));
 x_ens_std  = zeros(n_states, length(t));
 for i = 1:length(t)
-    members = reshape(x_ensemble(:,i), n_states, N_ens);  % 3 x N_ens
+    members = reshape(x_ensemble(:,i), n_states, N_ens);
     x_ens_mean(:,i) = mean(members, 2);
     x_ens_std(:,i)  = std(members, 0, 2);
 end
@@ -117,4 +117,13 @@ for s = 1:n_states
         xlabel('$t$', 'Interpreter', 'latex', 'FontSize', 13);
     end
     set(gca, 'FontName', 'Times', 'LineWidth', 1);
+end
+
+% ── Local function (mirrors definition in mae280_final_proj.mlx) ──────────
+function x_next = RK4_step(f, x, dt)
+    k1 = f(x);
+    k2 = f(x + 0.5*dt*k1);
+    k3 = f(x + 0.5*dt*k2);
+    k4 = f(x + dt*k3);
+    x_next = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
 end
